@@ -123,8 +123,10 @@ prepare() {
   cd mesa
 
   echo ">> Using branch: $MESA_BRANCH"
-  git fetch origin
-  git checkout "$MESA_BRANCH"
+
+  git fetch origin --prune
+
+  git checkout -B "$MESA_BRANCH" "origin/$MESA_BRANCH"
 
   if [[ -n "$MESA_COMMIT" ]]; then
     echo ">> Using commit: $MESA_COMMIT"
@@ -139,6 +141,20 @@ prepare() {
       git merge --no-edit "mr-${mr#!}"
     done
   fi
+
+  cd "$srcdir"
+
+  echo ">> Cleaning previous build directories..."
+
+  find . -maxdepth 2 -type d -name "build*" -exec rm -rf {} + 2>/dev/null || true
+  find . -maxdepth 2 -type d -name "*build*" -exec rm -rf {} + 2>/dev/null || true
+
+  rm -rf build64 build32 mesa/build mesa/build64 mesa/build32 2>/dev/null || true
+
+  rm -rf mesa/.meson mesa/builddir mesa/meson-private 2>/dev/null || true
+
+  find mesa -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+  find mesa -type f -name "*.pyc" -delete 2>/dev/null || true
 
   _new_pkgver=$(pkgver)
   if [ "$_new_pkgver" != "999.999.999.0.0000000" ]; then
