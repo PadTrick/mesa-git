@@ -98,7 +98,6 @@ sha256sums=('SKIP')
 # ==================
 
 pkgver() {
-    # Use the same approach as Frogging-Family
     _ver="999.999.999"
 
     if [ -d "$srcdir/mesa" ]; then
@@ -141,7 +140,6 @@ prepare() {
     done
   fi
 
-  # Update pkgver dynamically (optional)
   _new_pkgver=$(pkgver)
   if [ "$_new_pkgver" != "999.999.999.0.0000000" ]; then
     sed -i "s|^pkgver=.*|pkgver=${_new_pkgver}|" "$startdir/PKGBUILD"
@@ -190,9 +188,37 @@ build() {
 # ===================
 
 package_mesa-git() {
-  depends=(libdrm wayland libx11 llvm vulkan-icd-loader)
-  provides=(mesa)
-  conflicts=(mesa)
+  depends=(libdrm wayland libx11 llvm vulkan-icd-loader libva libvdpau)
+
+  provides=(
+    mesa=$pkgver-$pkgrel
+    vulkan-intel=$pkgver-$pkgrel
+    vulkan-radeon=$pkgver-$pkgrel
+    vulkan-nouveau=$pkgver-$pkgrel
+    vulkan-driver
+    opengl-driver
+    libva-mesa-driver=$pkgver-$pkgrel
+    mesa-vdpau=$pkgver-$pkgrel
+    opencl-mesa=$pkgver-$pkgrel
+    opencl-driver
+  )
+
+  conflicts=(
+    'mesa'
+    'vulkan-intel'
+    'vulkan-radeon'
+    'vulkan-nouveau'
+    'libva-mesa-driver'
+    'mesa-vdpau'
+    'opencl-mesa'
+  )
+
+  # Sicherheitscheck: Prüfe ob build64 existiert
+  if [ ! -d "build64" ]; then
+    echo "ERROR: Build directory 'build64' not found!"
+    echo "Run 'makepkg' without -R flag to build first."
+    return 1
+  fi
 
   DESTDIR="$pkgdir" ninja -C build64 install
 
@@ -205,14 +231,45 @@ package_mesa-git() {
 # ===================
 
 package_lib32-mesa-git() {
-  depends=(mesa-git)
-  provides=(lib32-mesa)
-  conflicts=(lib32-mesa)
+  depends=(mesa-git lib32-vulkan-icd-loader lib32-libva lib32-libvdpau)
+
+  provides=(
+    lib32-mesa=$pkgver-$pkgrel
+    lib32-vulkan-intel=$pkgver-$pkgrel
+    lib32-vulkan-radeon=$pkgver-$pkgrel
+    lib32-vulkan-nouveau=$pkgver-$pkgrel
+    lib32-vulkan-driver
+    lib32-opengl-driver
+    lib32-libva-mesa-driver=$pkgver-$pkgrel
+    lib32-mesa-vdpau=$pkgver-$pkgrel
+    lib32-opencl-mesa=$pkgver-$pkgrel
+    lib32-opencl-driver
+  )
+
+  conflicts=(
+    'lib32-mesa'
+    'lib32-vulkan-intel'
+    'lib32-vulkan-radeon'
+    'lib32-vulkan-nouveau'
+    'lib32-libva-mesa-driver'
+    'lib32-mesa-vdpau'
+    'lib32-opencl-mesa'
+  )
+
+  if [ ! -d "build32" ]; then
+    echo "ERROR: Build directory 'build32' not found!"
+    echo "Run 'makepkg' without -R flag to build first."
+    return 1
+  fi
 
   DESTDIR="$pkgdir" ninja -C build32 install
 
-  # Clean up unwanted files
-  #rm -rf "$pkgdir"/usr/include
-  #find "$pkgdir/usr/lib32" -name "*.a" -delete
-  #find "$pkgdir/usr/lib32" -name "*.la" -delete
+  # Remove duplicate files that should only exist in 64-bit package
+  rm -rf "$pkgdir"/usr/include
+  rm -rf "$pkgdir"/usr/share/drirc.d
+  rm -rf "$pkgdir"/usr/share/glvnd/egl_vendor.d
+
+  # Clean up unwanted library files
+  find "$pkgdir/usr/lib32" -name "*.a" -delete
+  find "$pkgdir/usr/lib32" -name "*.la" -delete
 }
