@@ -213,7 +213,6 @@ package_mesa-git() {
     'opencl-mesa'
   )
 
-  # Sicherheitscheck: Prüfe ob build64 existiert
   if [ ! -d "build64" ]; then
     echo "ERROR: Build directory 'build64' not found!"
     echo "Run 'makepkg' without -R flag to build first."
