@@ -1,4 +1,3 @@
-```markdown
 # mesa-git 🧱🎮
 
 Custom **Mesa Git** build for **Arch Linux**, built with **Meson + Ninja** and packaged
@@ -6,24 +5,28 @@ as installable **pacman packages**.
 
 This repository is intended for **testing, development and early validation** of
 Mesa features, including:
-- specific branches (e.g. `main`, `25.3`)
-- specific commits
+- specific branches (e.g. `main`, `26.2`)
+- specific commits or tags
 - GitLab Merge Requests (MRs)
+- switching compilers (`""` system default, `gcc`, `clang`)
+- passing extra Meson options per architecture (`64-bit` and `32-bit`)
 
-Optimized for **Intel GPUs (including Intel Arc)** with support for **AMD** and **NVIDIA (nouveau)**.
+Configured by default for **AMD Radeon** (`radeonsi`, `zink`, `amd`), with support
+for **Intel Arc / Iris** (`iris`, `zink`, `intel`) and a placeholder/untested
+configuration for **NVIDIA** (`nouveau`).
 
 ---
 
 ## 📦 **Packages Provided**
 
-This PKGBUILD produces **two packages from a single source tree**:
+This PKGBUILD produces **pacman packages** from a single source tree:
 
 ### 1. **mesa-git**
 - 64-bit Mesa libraries
 - OpenGL, Vulkan, DRI, GLX
 - Installed to `/usr/lib`
 
-### 2. **lib32-mesa-git**
+### 2. **lib32-mesa-git** (optional via `BUILD_LIB32="1"`)
 - 32-bit Mesa libraries (multilib)
 - Required for:
   - Steam
@@ -36,148 +39,144 @@ This PKGBUILD produces **two packages from a single source tree**:
 ## ✨ **Features**
 
 - Builds Mesa directly from the **official Mesa Git repository**
-- Uses **Meson** (upstream-recommended build system)
-- Single PKGBUILD for **64-bit and 32-bit**
-- Prevents version/ABI mismatch between architectures
-- **Automatic dependency selection** based on GPU configuration
-- Fully configurable:
-  - Branch selection
-  - Commit pinning
-  - Merge Request testing
-  - GPU driver selection (Intel, AMD, NVIDIA)
+- Uses **Meson + Ninja**
+- Single `PKGBUILD` for **64-bit and 32-bit** (`BUILD_LIB32="1"` or `"0"`)
+- Keeps headers, ABI, and version aligned across architectures
+- **Dynamic dependency selection** based on driver selection, `BUILD_LIB32`, and `MESA_COMPILER`
+- **Compiler switching** via `MESA_COMPILER` (`""`, `"gcc"`, `"clang"`)
+- **Extra Meson flags** per architecture via `MESA_EXTRA_MESON_64` and `MESA_EXTRA_MESON_32`
+- Automatic `PATH` lookup for `mesa_clc` and `vtn_bindgen2` built in `build64` when building `build32`
 - Clean installation & removal via `pacman`
 
 ---
 
 ## 🔧 **Build Configuration**
 
-At the **top of the PKGBUILD**, you can configure what should be built.
+At the **top of the `PKGBUILD`**, under `USER CONFIGURATION`, you can adjust:
 
-### Basic Configuration
 ```bash
-# Branch to use (default: main)
-MESA_BRANCH="main"
+# Branch (default: main; for 26.2.x use "26.2")
+MESA_BRANCH="26.2"
 
-# Commit to use (empty = latest commit of the branch)
-MESA_COMMIT=""
+# Commit or tag (empty = latest commit of MESA_BRANCH;
+# set to release commit or tag e.g. "mesa-26.2.7" if desired)
+MESA_COMMIT="c8bb568978cc2bcafc958ee771d43822d6ff3116"
 
-# Merge Requests to apply (empty = none)
-# Example: MESA_MRS=("!27358")
+# Merge Requests (empty = none)
+# Format: ("!12345" "!67890")
 MESA_MRS=()
+
+# Compiler selection: "" (system default), "gcc", or "clang"
+MESA_COMPILER=""
+
+# GPU DRIVER SELECTION (choose one or multiple)
+# Default: AMD Radeon (RX 9070)
+GALLIUM_DRIVERS=("radeonsi" "zink")
+VULKAN_DRIVERS=("amd")
+
+# Extra Meson options (optional, space-separated)
+# Example for Intel 64+32-bit when 32-bit lacks clangBasic:
+# MESA_EXTRA_MESON_64="-Dinstall-mesa-clc=true"
+# MESA_EXTRA_MESON_32="-Dmesa-clc=system"
+MESA_EXTRA_MESON_64=""
+MESA_EXTRA_MESON_32=""
+
+# Build 32-bit (lib32-mesa-git) as well? ("1" = yes, "0" = no)
+BUILD_LIB32="1"
 ```
-
-### GPU Driver Selection
-Uncomment **ONLY ONE** configuration block in the PKGBUILD:
-
-```bash
-# For Intel Arc (default)
-GALLIUM_DRIVERS=("iris" "zink")
-VULKAN_DRIVERS=("intel")
-
-# For AMD Radeon
-#GALLIUM_DRIVERS=("radeonsi" "zink")
-#VULKAN_DRIVERS=("amd")
-
-# For NVIDIA (nouveau)
-#GALLIUM_DRIVERS=("nouveau" "zink")
-#VULKAN_DRIVERS=("nvidia")
-
-# For ALL drivers (largest build)
-#GALLIUM_DRIVERS=("iris" "radeonsi" "nouveau" "zink") 
-#VULKAN_DRIVERS=("intel" "amd" "nvidia")
-```
-
-**Important:** Dependencies are automatically selected based on your GPU choice!
 
 ---
 
 ## 🛠️ **Usage**
 
 ### 1. Clone the repository
-
 ```bash
 git clone https://github.com/PadTrick/mesa-git.git
 cd mesa-git
 ```
 
-### 2. Configure GPU drivers
-Edit the PKGBUILD and uncomment your desired GPU configuration.
+### 2. Install helper dependencies & optional Git clone workaround (`install_deps.sh`)
+Review `install_deps.sh` before running it:
+```bash
+./install_deps.sh
+```
+The script installs common build/multilib/Rust/LLVM/Python packages via `pacman` and contains commented-out Git configuration lines for large GitLab clones (`http.version HTTP/1.1` and `http.postBuffer 524288000`) if you encounter `curl 56` / `RPC failed` disconnects.
 
-### 3. Build packages
+### 3. Configure `PKGBUILD`
+Edit the `USER CONFIGURATION` section in `PKGBUILD` (branch, commit, merge requests, compiler, GPU drivers, extra Meson options, and `BUILD_LIB32`).
 
+### 4. Build packages
 ```bash
 makepkg -s
 ```
+*(Or `makepkg -sf` when rebuilding after dependency or flag changes.)*
 
-### 4. Install packages
-
+### 5. Install packages
 ```bash
 sudo pacman -U mesa-git-*.pkg.tar.zst
 sudo pacman -U lib32-mesa-git-*.pkg.tar.zst
 ```
+*(If `BUILD_LIB32="0"`, only `mesa-git-*.pkg.tar.zst` is built.)*
 
 ---
 
 ## 🎯 **GPU Support Matrix**
 
-| GPU Vendor | Gallium Drivers | Vulkan Drivers | Notes |
-|------------|----------------|----------------|-------|
-| **Intel Arc** | `iris`, `zink` | `intel` | Supports all Intel GPUs (Gen4 to Arc) |
-| **Intel HD/Iris** | `iris` | `intel` | Older Intel iGPUs |
-| **AMD Radeon** | `radeonsi`, `zink` | `amd` | Automatic dependency selection |
-| **NVIDIA (nouveau)** | `nouveau`, `zink` | `nvidia` | **Vulkan support is experimental/limited** |
+| GPU Target | Gallium Drivers | Vulkan Drivers | Status & Notes |
+|------------|----------------|----------------|----------------|
+| **AMD Radeon (Default)** | `radeonsi`, `zink` | `amd` | Tested and working (64-bit & 32-bit) |
+| **Intel Arc / Iris** | `iris`, `zink` | `intel` | Tested and working; for 64-bit + 32-bit builds, see `MESA_EXTRA_MESON_64` / `MESA_EXTRA_MESON_32` |
+| **NVIDIA (`nouveau`)** | `nouveau`, `zink` | `nouveau` | **Dummy / untested** — kept as a placeholder only; not tested on hardware |
+| **All Drivers** | `radeonsi`, `iris`, `nouveau`, `zink` | `amd`, `intel`, `nouveau` | Largest build time; NVIDIA part remains a dummy/untested |
 
 ---
 
-## ⚠️ **Important Notes by GPU Vendor**
+## ⚠️ **Important Notes by GPU & Build Setup**
 
-### **Intel Arc**
-- Uses standard `-Dvulkan-drivers=intel` option
-- `iris` driver supports all Intel GPUs from Gen4+ including Arc
-- Zink driver included for Vulkan-on-OpenGL testing
-- Requires Linux kernel ≥ 6.2 for full Intel Arc functionality
-- **Dependencies automatically added:** libva, libvdpau, libclc, spirv-llvm-translator
+### **AMD Radeon (Default)**
+- Uses `GALLIUM_DRIVERS=("radeonsi" "zink")` and `VULKAN_DRIVERS=("amd")`.
+- Automatically adds AMD 64-bit and (when `BUILD_LIB32="1"`) 32-bit dependencies including `libelf`, `libclc`, `spirv-llvm-translator`, `rust`, `rust-bindgen`, `cbindgen`, `libxml2`, `libva`, and their `lib32-*` counterparts (`lib32-rust-libs`, etc.).
 
-### **AMD Radeon - Automatic Dependency Handling**
-When building for AMD, these dependencies are **automatically selected**:
+### **Intel Arc / Iris (including 64-bit + 32-bit builds)**
+- Uses `GALLIUM_DRIVERS=("iris" "zink")` and `VULKAN_DRIVERS=("intel")`.
+- When building both 64-bit and 32-bit packages on systems where 32-bit `clangBasic` / `clang-cpp` libraries are not available for `mesa_clc`, set:
+  ```bash
+  MESA_EXTRA_MESON_64="-Dinstall-mesa-clc=true"
+  MESA_EXTRA_MESON_32="-Dmesa-clc=system"
+  ```
+- During `build()`, if `mesa_clc` or `vtn_bindgen2` were built in `build64`, their directories are automatically prepended to `PATH` before running `meson setup` for `build32`.
 
-```bash
-# 64-bit dependencies (automatically added):
-libelf libclc spirv-llvm-translator rust rust-bindgen cbindgen libxml2
+### **NVIDIA (`nouveau`) — Dummy & Untested**
+- **Current status:** The NVIDIA configuration in this repository is currently only a **dummy / placeholder and untested**.
+- Do not rely on it as a supported or validated setup; if you use NVIDIA hardware, test carefully or stick to your intended driver setup.
 
-# 32-bit dependencies (automatically added):
-lib32-libelf lib32-spirv-llvm-translator lib32-libxml2 lib32-rust-libs
-```
-
-**Note:** Rust (`rust`, `rust-bindgen`, `cbindgen`) is **required** for AMD RADV Vulkan driver compilation.
-
-### **NVIDIA (nouveau) - Limitations**
-- **OpenGL:** Full support via `nouveau` driver
-- **Vulkan:** **Experimental and incomplete** via `nvidia` Vulkan driver
-- **Performance:** Generally slower than proprietary NVIDIA drivers
-- **Hardware:** Best support for older NVIDIA cards (Kepler, Maxwell)
-- **Dependencies automatically added:** libelf, libclc, spirv-llvm-translator
+### **Compiler Selection (`MESA_COMPILER`)**
+- `""`: Uses the default compiler environment (`CC`/`CXX` unset for 64-bit, `gcc -m32` / `g++ -m32` for 32-bit).
+- `"gcc"`: Uses `gcc` / `g++` (and `-m32` for 32-bit), adding `gcc` to `makedepends`.
+- `"clang"`: Uses `clang` / `clang++` (and `-m32` for 32-bit), adding `clang` and `lld` to `makedepends`.
 
 ---
 
 ## 🧪 **Build Examples**
 
-### Build latest Mesa `main` for Intel Arc (default)
+### Build default configuration (AMD on branch `26.2` / pinned commit)
 ```bash
 makepkg -s
 ```
 
-### Build Mesa branch `25.3` for AMD
+### Build with GCC or Clang
+Set `MESA_COMPILER="gcc"` or `MESA_COMPILER="clang"` in `PKGBUILD`, or override inline:
 ```bash
-MESA_BRANCH="25.3" makepkg -s
+MESA_COMPILER="gcc" makepkg -sf
 ```
 
-### Build for NVIDIA with a specific commit
+### Build Intel Arc with both 64-bit and 32-bit packages
+Set `GALLIUM_DRIVERS=("iris" "zink")`, `VULKAN_DRIVERS=("intel")`, `MESA_EXTRA_MESON_64="-Dinstall-mesa-clc=true"`, and `MESA_EXTRA_MESON_32="-Dmesa-clc=system"` in `PKGBUILD`, then run:
 ```bash
-MESA_COMMIT="deadbeef1234" makepkg -s
+makepkg -sf
 ```
 
-### Test a Merge Request for Intel
+### Test a Merge Request
 ```bash
 MESA_MRS=("!27358") makepkg -s
 ```
@@ -186,125 +185,72 @@ MESA_MRS=("!27358") makepkg -s
 
 ## 📦 **System Requirements**
 
-### Basic Requirements
-- Arch Linux (x86_64)
-- Multilib enabled in `/etc/pacman.conf`
-- Base development tools: `base-devel`
-
-### Automatic Dependency Selection
-The PKGBUILD automatically selects the correct dependencies based on your GPU configuration:
-
-- **Base dependencies**: Always included (compiler tools, X11/Wayland, etc.)
-- **Intel dependencies**: Added when `intel` is in `VULKAN_DRIVERS`
-- **AMD dependencies**: Added when `amd` is in `VULKAN_DRIVERS`
-- **NVIDIA dependencies**: Added when `nvidia` is in `VULKAN_DRIVERS`
-
-**No manual dependency editing required!**
+- Arch Linux (`x86_64`)
+- `multilib` repository enabled in `/etc/pacman.conf` (required for `lib32-*` packages and `BUILD_LIB32="1"`)
+- `base-devel` installed
+- Dynamic `makedepends` in `PKGBUILD` based on:
+  - `BUILD_LIB32` (`_base_lib32_makedepends`)
+  - `MESA_COMPILER` (`clang`/`lld` or `gcc`)
+  - Active drivers in `GALLIUM_DRIVERS` and `VULKAN_DRIVERS` (`intel`, `amd`, `nouveau`)
 
 ---
 
 ## 🧠 **How It Works**
 
-* Mesa is cloned **once**
-* The same source tree is used for:
-  * 64-bit build
-  * 32-bit build
-* This guarantees:
-  * identical headers
-  * identical ABI
-  * identical Mesa version for both architectures
-* **Automatic dependency selection** based on GPU configuration
-
-The `prepare()` step:
-* checks out the selected branch
-* optionally pins a commit
-* optionally fetches & merges Merge Requests
+* Mesa is cloned **once** into `mesa` (`git+https://gitlab.freedesktop.org/mesa/mesa.git`).
+* `pkgver()` derives the version dynamically from `VERSION` plus commit count and short hash (`<version>.r<count>.g<short_sha>`).
+* `prepare()` checks out `MESA_BRANCH`, optionally checks out `MESA_COMMIT`, optionally fetches and merges `MESA_MRS`, and cleans `build64` and `build32`.
+* `build()` configures and builds `build64` (and `build32` when `BUILD_LIB32="1"`) with Meson and Ninja, applying `MESA_COMPILER` and `MESA_EXTRA_MESON_64` / `MESA_EXTRA_MESON_32`.
 
 ---
 
 ## 🧪 **Verification**
 
-Check package versions:
+Check installed package versions:
 ```bash
-pacman -Qi mesa-git lib32-mesa-git | grep Version
+pacman -Qi mesa-git lib32-mesa-git | grep -E "Name|Version"
 ```
 
-Verify drivers are installed:
+Verify DRI drivers are installed:
 ```bash
-# For Intel
-ls /usr/lib/dri/iris_dri.so
-
-# For AMD
+# AMD
 ls /usr/lib/dri/radeonsi_dri.so
 
-# For NVIDIA
+# Intel
+ls /usr/lib/dri/iris_dri.so
+
+# NVIDIA (dummy/untested)
 ls /usr/lib/dri/nouveau_dri.so
 ```
 
-Check active dependencies during build:
+Check runtime driver output:
 ```bash
-# See which dependencies are being installed
-makepkg -si --noconfirm --noprogressbar | grep "installing"
+vulkaninfo --summary
+glxinfo -B
 ```
 
 ---
 
 ## ⚠️ **Important Warnings**
 
-* This package **conflicts with**:
-  * `mesa` (official package)
-  * `lib32-mesa` (official package)
-
-* **Backup your system** before installation
-
-* Intended for:
-  * testing
-  * development
-  * early feature validation
-
-* **Not recommended** for production systems without experience
-
-* **AMD users**: Rust toolchain will be automatically installed
-
-* **NVIDIA users**: Vulkan support is limited/experimental
+* `mesa-git` and `lib32-mesa-git` conflict with and replace official `mesa` and `lib32-mesa` (as well as related driver provides/conflicts).
+* **NVIDIA support is currently a dummy and untested.**
+* Create backups or system snapshots before installing custom graphics drivers.
+* Intended for testing, development, and early feature validation.
 
 ---
 
 ## 🔄 **Reverting to Official Packages**
 
-To return to official Mesa packages:
+To switch back to Arch Linux's official Mesa packages:
 ```bash
 sudo pacman -S mesa lib32-mesa
 ```
 
 ---
 
-## 🎯 **Target Audience**
-
-* **Arch Linux users** wanting latest Mesa features
-* **Mesa developers & testers**
-* **Intel Arc users** seeking optimal performance
-* **AMD users** wanting bleeding-edge RadeonSI drivers
-* **NVIDIA open-source enthusiasts** (with caveats)
-* **Gamers** using Steam / Proton / Wine
-* Users who want **full control** over Mesa builds
-
----
-
-## 🤝 **Contributing**
-
-Contributions are welcome!
-Please ensure:
-* changes are tested with your GPU
-* configuration options are documented
-* commits are clearly described
-* AMD/NVIDIA specific changes are noted
-
----
-
 ## 📜 **License**
 
-Mesa is licensed under the **MIT license**.
-This PKGBUILD is provided as-is, without warranty.
+Mesa is licensed under the **MIT license**. This `PKGBUILD` and repository are provided as-is, without warranty.
 
-**Disclaimer:** Custom Mesa builds may cause system instability. Use at your own risk.
+**Disclaimer:** Custom Mesa builds may cause system instability or rendering issues. Use at your own risk.
