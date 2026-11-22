@@ -1,5 +1,3 @@
-# Maintainer: Patrick Wolpert
-
 # ======================
 #   USER CONFIGURATION
 # ======================
