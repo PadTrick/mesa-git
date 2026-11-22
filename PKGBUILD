@@ -1,3 +1,5 @@
+# Maintainer: Patrick Wolpert
+
 # ======================
 #   USER CONFIGURATION
 # ======================
@@ -41,19 +43,19 @@ MESA_EXTRA_MESON_32=""
 # GALLIUM_DRIVERS=("radeonsi" "iris" "nouveau" "zink")
 # VULKAN_DRIVERS=("amd" "intel" "nouveau")
 
-# Build 32-bit (lib32-mesa-git) as well? ("1" = yes, "0" = no)
+# Build 32-bit (lib32-mesa-git-custom) as well? ("1" = yes, "0" = no)
 BUILD_LIB32="1"
 
 # =====================
 #   PKGBUILD METADATA
 # =====================
 
-pkgbase=mesa-git
-pkgname=(mesa-git)
+pkgbase=mesa-git-custom
+pkgname=(mesa-git-custom)
 if [[ "$BUILD_LIB32" == "1" ]]; then
-  pkgname+=(lib32-mesa-git)
+  pkgname+=(lib32-mesa-git-custom)
 fi
-pkgver=26.2.7.r227417.gc8bb568978c  # Dynamically overwritten by pkgver() from branch/commit
+pkgver=26.2.7.r200.gc8bb568  # Dynamically overwritten by pkgver() from branch/commit
 pkgrel=1
 arch=(x86_64)
 url="https://mesa3d.org/"
@@ -74,7 +76,7 @@ _has_driver() {
 }
 
 _base_makedepends=(
-  git meson ninja python-mako python-packaging python-ply
+  git meson ninja bison flex python-mako python-packaging python-ply python-yaml
   llvm libdrm wayland wayland-protocols
   libx11 libxrandr libxshmfence libxcb libxxf86vm libxdamage
   vulkan-icd-loader libglvnd libunwind lm_sensors
@@ -294,11 +296,12 @@ build() {
 #   PACKAGE: 64-BIT
 # ===================
 
-package_mesa-git() {
+package_mesa-git-custom() {
   depends=(libdrm wayland libx11 llvm vulkan-icd-loader libglvnd)
 
   provides=(
     "mesa=$pkgver-$pkgrel"
+    "mesa-git=$pkgver-$pkgrel"
     "vulkan-intel=$pkgver-$pkgrel"
     "vulkan-radeon=$pkgver-$pkgrel"
     "vulkan-nouveau=$pkgver-$pkgrel"
@@ -311,6 +314,7 @@ package_mesa-git() {
 
   conflicts=(
     mesa
+    mesa-git
     vulkan-intel
     vulkan-radeon
     vulkan-nouveau
@@ -331,11 +335,12 @@ package_mesa-git() {
 #   PACKAGE: 32-BIT
 # ===================
 
-package_lib32-mesa-git() {
-  depends=("mesa-git=$pkgver-$pkgrel" lib32-vulkan-icd-loader lib32-libglvnd)
+package_lib32-mesa-git-custom() {
+  depends=("mesa-git-custom=$pkgver-$pkgrel" lib32-vulkan-icd-loader lib32-libglvnd)
 
   provides=(
     "lib32-mesa=$pkgver-$pkgrel"
+    "lib32-mesa-git=$pkgver-$pkgrel"
     "lib32-vulkan-intel=$pkgver-$pkgrel"
     "lib32-vulkan-radeon=$pkgver-$pkgrel"
     "lib32-vulkan-nouveau=$pkgver-$pkgrel"
@@ -348,6 +353,7 @@ package_lib32-mesa-git() {
 
   conflicts=(
     lib32-mesa
+    lib32-mesa-git
     lib32-vulkan-intel
     lib32-vulkan-radeon
     lib32-vulkan-nouveau
